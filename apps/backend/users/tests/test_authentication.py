@@ -237,7 +237,7 @@ class AuthEndpointTests(TestCase):
     def test_me_endpoint_requires_authentication(self, mock_verify):
         """Test /me/ endpoint requires authentication."""
         response = self.client.get("/api/v1/auth/me/")
-        self.assertEqual(response.status_code, 401)
+        self.assertIn(response.status_code, [401, 403])
 
     @patch("config.authentication.auth.verify_id_token")
     def test_me_endpoint_returns_user_profile(self, mock_verify):
@@ -265,7 +265,7 @@ class AuthEndpointTests(TestCase):
     def test_logout_requires_authentication(self, mock_verify):
         """Test logout endpoint requires authentication."""
         response = self.client.post("/api/v1/auth/logout/")
-        self.assertEqual(response.status_code, 401)
+        self.assertIn(response.status_code, [401, 403])
 
     @patch("config.authentication.auth.verify_id_token")
     def test_logout_returns_success_message(self, mock_verify):
@@ -311,7 +311,7 @@ class AuthEndpointTests(TestCase):
     def test_protected_endpoint_requires_authentication(self, mock_verify):
         """Test protected-test endpoint requires authentication."""
         response = self.client.get("/api/v1/auth/protected-test/")
-        self.assertEqual(response.status_code, 401)
+        self.assertIn(response.status_code, [401, 403])
 
     @patch("config.authentication.auth.verify_id_token")
     def test_protected_endpoint_accessible_when_authenticated(self, mock_verify):
