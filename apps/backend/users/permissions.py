@@ -16,3 +16,13 @@ class IsAdminUser(permissions.BasePermission):
     """
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+
+
+class IsOwnerOrAdmin(permissions.BasePermission):
+    """
+    Permission class to check if the authenticated user is the owner of the object or an admin.
+    """
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+        return obj.seller == request.user
