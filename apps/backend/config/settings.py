@@ -74,7 +74,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database Configuration (PostgreSQL)
 DATABASES = {
-    "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+    "default": env.db("DATABASE_URL", default="postgres://postgres:postgres@localhost:5432/campusloop")
 }
 
 # Password validation (Not directly used for students since we verify Firebase ID tokens, 
