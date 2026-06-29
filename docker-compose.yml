@@ -1,0 +1,117 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: campusloop_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=${DB_NAME:-campusloop}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    networks:
+      - campusloop_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: campusloop_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - campusloop_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: campusloop_backend
+    command: python apps/backend/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./apps/backend:/app/apps/backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-campusloop}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FIREBASE_CREDENTIALS_PATH=/app/apps/backend/firebase-credentials.json
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - campusloop_network
+
+  celery:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: campusloop_celery
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - ./apps/backend:/app/apps/backend
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-campusloop}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - campusloop_network
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: campusloop_celery_beat
+    command: celery -A config beat --loglevel=info
+    volumes:
+      - ./apps/backend:/app/apps/backend
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-campusloop}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - campusloop_network
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+    container_name: campusloop_web
+    command: pnpm --filter web dev
+    volumes:
+      - .:/app
+      - /app/apps/web/.next
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    networks:
+      - campusloop_network
+
+volumes:
+  postgres_data:
+
+networks:
+  campusloop_network:
+    driver: bridge

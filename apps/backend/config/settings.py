@@ -121,5 +121,8 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
 
 # Firebase Settings
-FIREBASE_CREDENTIALS_PATH = env("FIREBASE_CREDENTIALS_PATH", default="")
+FIREBASE_CREDENTIALS_PATH = env(
+    "FIREBASE_CREDENTIALS_PATH",
+    default=str(BASE_DIR / "firebase-service-account.json")
+)
 FIREBASE_STORAGE_BUCKET = env("FIREBASE_STORAGE_BUCKET", default="strathmore-marketplace.appspot.com")

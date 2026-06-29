@@ -24,28 +24,6 @@ ERROR_NON_STRATHMORE_EMAIL = (
 ERROR_MISSING_EMAIL = "Authentication token does not include an email address."
 
 
-def initialize_firebase() -> None:
-    """Initialize the Firebase Admin SDK once at startup."""
-    if firebase_admin._apps:
-        return
-
-    try:
-        credentials_path = settings.FIREBASE_CREDENTIALS_PATH
-        if credentials_path and os.path.exists(credentials_path):
-            cred = credentials.Certificate(credentials_path)
-            firebase_admin.initialize_app(
-                cred,
-                {"storageBucket": settings.FIREBASE_STORAGE_BUCKET},
-            )
-        else:
-            firebase_admin.initialize_app()
-    except Exception as exc:
-        logger.warning("Firebase Admin SDK failed to initialize: %s", exc)
-
-
-initialize_firebase()
-
-
 def _parse_bearer_token(auth_header: str) -> str:
     parts = auth_header.split()
     if parts[0].lower() != "bearer":
@@ -59,6 +37,8 @@ def _parse_bearer_token(auth_header: str) -> str:
 
 def _verify_firebase_token(id_token: str) -> dict:
     try:
+        from config.firebase import initialize_firebase
+        initialize_firebase()
         return auth.verify_id_token(id_token)
     except (InvalidIdTokenError, ExpiredIdTokenError, RevokedIdTokenError):
         raise exceptions.AuthenticationFailed(ERROR_INVALID_TOKEN)
