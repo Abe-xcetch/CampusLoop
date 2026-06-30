@@ -53,7 +53,8 @@ class ListingSerializer(serializers.ModelSerializer):
 class ListingCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Listing
-        fields = ["title", "description", "price", "condition", "category"]
+        fields = ["id", "title", "description", "price", "condition", "category"]
+        read_only_fields = ["id"]
 
     def validate_price(self, value):
         if value <= 0:

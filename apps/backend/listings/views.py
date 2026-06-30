@@ -32,6 +32,11 @@ class CategoryListCreateView(generics.ListCreateAPIView):
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]
 
+    def get_authenticators(self):
+        if self.request.method == 'GET':
+            return []
+        return super().get_authenticators()
+
     def get_permissions(self):
         if self.request.method == 'POST':
             return [IsAuthenticated(), IsAdminUser()]

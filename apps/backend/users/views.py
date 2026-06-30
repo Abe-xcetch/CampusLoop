@@ -40,6 +40,7 @@ class RegisterView(APIView):
     Rejects non-@strathmore.edu emails and unverified Firebase emails.
     """
 
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     class RegisterSerializer(Serializer):
@@ -107,6 +108,7 @@ class LoginView(APIView):
     Does not create password-based login because Firebase handles authentication.
     """
 
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     class LoginSerializer(Serializer):
@@ -192,6 +194,7 @@ class PasswordResetView(APIView):
     Firebase handles password reset emails.
     """
 
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     class PasswordResetSerializer(Serializer):

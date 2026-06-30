@@ -11,6 +11,9 @@ from transactions.serializers import (
 )
 from listings.models import Listing, ListingApprovalStatus
 from users.permissions import IsAdminUser
+from reputation.models import ReputationScore
+from django.db.models import Avg
+from decimal import Decimal
 
 
 class TransactionListCreateView(generics.ListCreateAPIView):
@@ -237,7 +240,23 @@ class ReviewCreateView(generics.CreateAPIView):
             reviewer=request.user,
             reviewee=reviewee
         )
-        
+        # After saving the review, update the reviewee's reputation aggregates
+        reviewee_user = reviewee
+        total_reviews = Review.objects.filter(reviewee=reviewee_user).count()
+        avg_rating = Review.objects.filter(reviewee=reviewee_user).aggregate(avg=Avg('rating'))['avg'] or 0
+        completed_transactions = Transaction.objects.filter(seller=reviewee_user, status=TransactionStatus.VERIFIED).count()
+
+        rep, _ = ReputationScore.objects.get_or_create(user=reviewee_user)
+        # Ensure Decimal stored with two decimal places
+        try:
+            rep.rating_average = Decimal(str(round(float(avg_rating), 2)))
+        except Exception:
+            rep.rating_average = Decimal('0.00')
+        rep.total_ratings_count = total_reviews
+        rep.completed_transactions_count = completed_transactions
+        rep.is_trusted_seller = rep.rating_average >= Decimal('4.00')
+        rep.save()
+
         response_serializer = ReviewSerializer(serializer.instance)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
