@@ -74,6 +74,7 @@ class Listing(UUIDTimestampedModel):
 
 
 class ApprovalDecision(models.TextChoices):
+    PENDING = "pending", "Pending"
     APPROVED = "approved", "Approved"
     REJECTED = "rejected", "Rejected"
 
@@ -88,8 +89,10 @@ class ListingApproval(UUIDTimestampedModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name="listing_approvals",
     )
+    reviewed_at = models.DateTimeField(blank=True, null=True)
     decision = models.CharField(max_length=20, choices=ApprovalDecision.choices)
     notes = models.TextField(blank=True)
 
@@ -102,8 +105,13 @@ class ListingApproval(UUIDTimestampedModel):
 
     def clean(self):
         super().clean()
+        # Only enforce that APPROVED/REJECTED decisions are applied to listings
+        # that are currently pending. Allow creating/updating PENDING approval
+        # records even if the listing status is different to avoid blocking
+        # automatic initialization or administrative corrections.
         if (
             self.listing_id
+            and self.decision in (ApprovalDecision.APPROVED, ApprovalDecision.REJECTED)
             and self.listing.approval_status != ListingApprovalStatus.PENDING
         ):
             raise ValidationError(
@@ -112,9 +120,44 @@ class ListingApproval(UUIDTimestampedModel):
 
     def save(self, *args, **kwargs):
         self.full_clean()
+        # If approving and no reviewed_at provided, set it before saving to avoid extra DB updates
+        if self.decision == ApprovalDecision.APPROVED and not self.reviewed_at:
+            from django.utils import timezone
+
+            self.reviewed_at = timezone.now()
+
         super().save(*args, **kwargs)
+
+        # Only update listing status for explicit approve/reject actions
         if self.decision == ApprovalDecision.APPROVED:
             self.listing.approval_status = ListingApprovalStatus.APPROVED
-        else:
+        elif self.decision == ApprovalDecision.REJECTED:
             self.listing.approval_status = ListingApprovalStatus.REJECTED
+        else:
+            # leave listing as pending
+            return
         self.listing.save(update_fields=["approval_status", "updated_at"])
+
+
+# Ensure a ListingApproval is created when a Listing is created
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db import transaction
+from django.utils import timezone
+
+
+@receiver(post_save, sender=Listing)
+def create_listing_approval(sender, instance, created, **kwargs):
+    if not created:
+        return
+    # Create a single pending approval record if none exists. Use
+    # get_or_create to avoid race conditions and duplicates.
+    ListingApproval.objects.get_or_create(
+        listing=instance,
+        defaults={
+            "reviewed_by": None,
+            "decision": ApprovalDecision.PENDING,
+            "notes": "",
+            "reviewed_at": None,
+        },
+    )

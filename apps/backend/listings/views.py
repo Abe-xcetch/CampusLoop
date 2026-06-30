@@ -186,14 +186,25 @@ class ListingApprovalView(APIView):
         decision = serializer.validated_data['decision']
         notes = serializer.validated_data.get('notes', '')
 
-        approval = ListingApproval.objects.create(
+        # Reuse the existing approval record if present, otherwise create one.
+        approval, created = ListingApproval.objects.get_or_create(
             listing=listing,
-            reviewed_by=request.user,
-            decision=decision,
-            notes=notes
+            defaults={
+                "reviewed_by": request.user,
+                "decision": decision,
+                "notes": notes,
+            },
         )
 
+        if not created:
+            approval.reviewed_by = request.user
+            approval.decision = decision
+            approval.notes = notes
+            approval.save()
+
         response_serializer = ListingApprovalSerializer(approval)
+        # Keep returning 201 to preserve existing API contract/tests even when
+        # we update an existing approval record (we don't create duplicates).
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 

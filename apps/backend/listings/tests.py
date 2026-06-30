@@ -575,3 +575,22 @@ class ListingApprovalTests(TestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['decision'], 'approved')
         self.assertEqual(response.data[0]['notes'], 'First approval')
+
+    def test_listing_creation_creates_pending_approval(self):
+        """Test that creating a listing automatically creates a pending ListingApproval."""
+        listing = Listing.objects.create(
+            title="Auto Approval Item",
+            description="Created by student",
+            price=1500,
+            condition=ListingCondition.GOOD,
+            category=self.category,
+            seller=self.student_user,
+            approval_status=ListingApprovalStatus.PENDING
+        )
+
+        approvals = ListingApproval.objects.filter(listing=listing)
+        self.assertEqual(approvals.count(), 1)
+        approval = approvals.first()
+        self.assertEqual(approval.decision, 'pending')
+        self.assertIsNone(approval.reviewed_by)
+        self.assertIsNone(approval.reviewed_at)

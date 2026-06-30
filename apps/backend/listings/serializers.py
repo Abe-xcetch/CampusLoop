@@ -86,6 +86,7 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
 class ListingApprovalSerializer(serializers.ModelSerializer):
     listing_title = serializers.CharField(source="listing.title", read_only=True)
     reviewed_by_email = serializers.EmailField(source="reviewed_by.email", read_only=True)
+    reviewed_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = ListingApproval
@@ -95,6 +96,7 @@ class ListingApprovalSerializer(serializers.ModelSerializer):
             "listing_title",
             "reviewed_by",
             "reviewed_by_email",
+            "reviewed_at",
             "decision",
             "notes",
             "created_at",
